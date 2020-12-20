@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -46,7 +45,6 @@ public class FinderUtils {
 
     public static Role findRole(GuildMessageReceivedEvent event, String content) {
         List<Role> found = findRole0(event, content);
-
         // Ah yes, null return null.
         if (found == null) {
             return null;
@@ -75,6 +73,9 @@ public class FinderUtils {
     public static Role findRoleSelect(GuildMessageReceivedEvent event,
                                       String content, Consumer<Role> consumer) {
         List<Role> found = findRole0(event, content);
+        if (found == null) {
+            return null;
+        }
 
         if (found.size() == 1) {
             return found.get(0);
@@ -106,6 +107,9 @@ public class FinderUtils {
 
     public static TextChannel findChannel(GuildMessageReceivedEvent event, String content) {
         List<TextChannel> found = findChannel0(event, content);
+        if (found == null) {
+            return null;
+        }
 
         if (found.size() > 1 && !content.isEmpty()) {
             event.getChannel().sendMessage(String.format(
@@ -131,6 +135,10 @@ public class FinderUtils {
     public static TextChannel findChannelSelect(GuildMessageReceivedEvent event,
                                                 String content, Consumer<TextChannel> consumer) {
         List<TextChannel> found = findChannel0(event, content);
+        // This feels a little weird, but found can return null here.
+        if (found == null) {
+            return null;
+        }
 
         if (found.size() == 1) {
             return found.get(0);

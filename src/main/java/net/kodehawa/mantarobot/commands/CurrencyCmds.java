@@ -35,9 +35,9 @@ import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.db.entities.Player;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
 
@@ -46,7 +46,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static net.kodehawa.mantarobot.utils.RatelimitUtils.ratelimit;
+import static net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils.ratelimit;
 
 @Module
 public class CurrencyCmds {
@@ -235,7 +235,8 @@ public class CurrencyCmds {
 
                 var player = ctx.getPlayer();
                 var seasonPlayer = ctx.getSeasonPlayer();
-                var item = ItemHelper.fromAnyNoId(content.replace("\"", "")).orElse(null);
+                var item = ItemHelper.fromAnyNoId(content.replace("\"", ""), ctx.getLanguageContext())
+                        .orElse(null);
 
                 //Open default crate if nothing's specified.
                 if (item == null || content.isEmpty()) {
@@ -364,7 +365,7 @@ public class CurrencyCmds {
                             return;
                         }
 
-                        var item = ItemHelper.fromAnyNoId(args[0]).orElse(null);
+                        var item = ItemHelper.fromAnyNoId(args[0], ctx.getLanguageContext()).orElse(null);
 
                         //Well, shit.
                         if (item == null) {

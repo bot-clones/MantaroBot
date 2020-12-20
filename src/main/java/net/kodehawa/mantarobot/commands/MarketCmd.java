@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.kodehawa.mantarobot.commands.currency.item.*;
 import net.kodehawa.mantarobot.commands.currency.item.special.*;
+import net.kodehawa.mantarobot.commands.currency.item.special.helpers.Breakable;
 import net.kodehawa.mantarobot.commands.currency.profile.Badge;
 import net.kodehawa.mantarobot.core.CommandRegistry;
 import net.kodehawa.mantarobot.core.listeners.operations.InteractiveOperations;
@@ -34,13 +35,13 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,10 +55,9 @@ public class MarketCmd {
     public void market(CommandRegistry cr) {
         final IncreasingRateLimiter rateLimiter = new IncreasingRateLimiter.Builder()
                 .limit(1)
-                .spamTolerance(2)
+                .spamTolerance(4)
                 .cooldown(3, TimeUnit.SECONDS)
-                .maxCooldown(3, TimeUnit.SECONDS)
-                .randomIncrement(true)
+                .maxCooldown(10, TimeUnit.SECONDS)
                 .pool(MantaroData.getDefaultJedisPool())
                 .prefix("market")
                 .premiumAware(true)
@@ -210,7 +210,7 @@ public class MarketCmd {
                     }
                 }
 
-                var item = ItemHelper.fromAny(itemName).orElse(null);
+                var item = ItemHelper.fromAnyNoId(itemName, ctx.getLanguageContext()).orElse(null);
 
                 if (item == null) {
                     ctx.sendLocalized("commands.market.dump.non_existent", EmoteReference.ERROR);
@@ -256,7 +256,7 @@ public class MarketCmd {
 
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
-                var item = ItemHelper.fromAny(content).orElse(null);
+                var item = ItemHelper.fromAnyNoId(content, ctx.getLanguageContext()).orElse(null);
 
                 if (item == null) {
                     ctx.sendLocalized("commands.market.price.non_existent", EmoteReference.ERROR);
@@ -355,7 +355,8 @@ public class MarketCmd {
                         itemName = content.replace("allof", "").trim();
                     }
 
-                    var toSell = ItemHelper.fromAny(itemName.replace("\"", "")).orElse(null);
+                    var toSell = ItemHelper.fromAnyNoId(itemName.replace("\"", ""), ctx.getLanguageContext())
+                            .orElse(null);
 
                     if (toSell == null) {
                         ctx.sendLocalized("commands.market.sell.non_existent", EmoteReference.ERROR);
@@ -460,8 +461,8 @@ public class MarketCmd {
                     }
                 }
 
-                final var itemToBuy = ItemHelper.fromAnyNoId(itemName.replace("\"", "")).orElse(null);
-
+                final var itemToBuy = ItemHelper.fromAnyNoId(itemName.replace("\"", ""), ctx.getLanguageContext())
+                        .orElse(null);
                 if (itemToBuy == null) {
                     ctx.sendLocalized("commands.market.buy.non_existent", EmoteReference.ERROR);
                     return;
@@ -481,8 +482,9 @@ public class MarketCmd {
                         return;
                     }
 
-                    var removedMoney = isSeasonal ? seasonalPlayer.removeMoney(itemToBuy.getValue() * itemNumber) :
-                            player.removeMoney(itemToBuy.getValue() * itemNumber);
+                    var value = itemToBuy.getValue() * itemNumber;
+                    var removedMoney = isSeasonal ? seasonalPlayer.removeMoney(value) :
+                            player.removeMoney(value);
 
                     if (removedMoney) {
                         playerInventory.process(new ItemStack(itemToBuy, itemNumber));
@@ -497,13 +499,19 @@ public class MarketCmd {
                         }
 
                         var playerMoney = isSeasonal ? seasonalPlayer.getMoney() : player.getCurrentMoney();
+                        var message = "commands.market.buy.success";
+                        if (itemToBuy instanceof Breakable) {
+                            message = "commands.market.buy.success_breakable";
+                        }
 
-                        ctx.sendLocalized("commands.market.buy.success",
-                                EmoteReference.OK, itemNumber, itemToBuy.getEmoji(), itemToBuy.getValue() * itemNumber,
-                                playerMoney
-                        );
+                        if (itemToBuy instanceof Potion) {
+                            message = "commands.market.buy.success_potion";
+                        }
+
+                        ctx.sendLocalized(message, EmoteReference.OK, itemNumber, itemToBuy.getEmoji(), value, playerMoney);
+
                     } else {
-                        ctx.sendLocalized("commands.market.buy.not_enough_money", EmoteReference.STOP);
+                        ctx.sendLocalized("commands.market.buy.not_enough_money", EmoteReference.STOP, player.getCurrentMoney(), value);
                     }
                 } catch (Exception e) {
                     ctx.send(EmoteReference.ERROR + languageContext.get("general.invalid_syntax"));

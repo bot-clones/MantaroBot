@@ -40,9 +40,9 @@ import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.log.LogFilter;
 import net.kodehawa.mantarobot.log.LogUtils;
 import net.kodehawa.mantarobot.utils.Prometheus;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.TracingPrintStream;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.exporters.Metrics;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -118,7 +118,6 @@ public class MantaroBot {
                         .build();
 
                 Response httpResponse = Utils.httpClient.newCall(request).execute();
-
                 if (httpResponse.code() != 200) {
                     log.error(
                             "Cannot connect to the API! Wrong status code? Returned: {}, Expected: 200",
@@ -142,15 +141,15 @@ public class MantaroBot {
                 shardId -> getShardManager().getShardById(shardId)
         );
 
-        for (String node : config.getLavalinkNodes()) {
+        for (var node : config.getLavalinkNodes()) {
             lavaLink.addNode(new URI(node), config.lavalinkPass);
         }
 
         // Choose the server with the lowest player amount
         lavaLink.getLoadBalancer().addPenalty(LavalinkLoadBalancer.Penalties::getPlayerPenalty);
+        lavaLink.getLoadBalancer().addPenalty(LavalinkLoadBalancer.Penalties::getCpuPenalty);
 
         core = new MantaroCore(config, ExtraRuntimeOptions.DEBUG);
-
         audioManager = new MantaroAudioManager();
         birthdayCacher = new BirthdayCacher();
         ItemHelper.setItemActions();
@@ -308,7 +307,7 @@ public class MantaroBot {
             // Back off this call up to 300 seconds to avoid sending a bunch of requests to discord at the same time
             // This will happen anywhere from 0 seconds after 00:00 to 300 seconds after or before 00:00 (so 23:57 or 00:03)
             // This back-off is per-shard, so this makes it so the requests are more spaced out.
-            // Shouldn't matter much for the end user, but makes so batch requests don't fuck over ratelimits inmediatly.
+            // Shouldn't matter much for the end user, but makes so batch requests don't fuck over ratelimits immediately.
             var maxBackoff = 300_000; // In millis
             var randomBackoff = random.nextBoolean() ? -random.nextInt(maxBackoff) : random.nextInt(maxBackoff);
             executorService.scheduleWithFixedDelay(() -> BirthdayTask.handle(shard.getId()),
@@ -396,18 +395,18 @@ public class MantaroBot {
     // This will print if the MANTARO_PRINT_VARIABLES env variable is present.
     private void printStartVariables() {
         log.info("""
-                        Environment variables set on this startup:
-                        VERBOSE_SHARD_LOGS = {}
-                        DEBUG = {}
-                        DEBUG_LOGS = {}
-                        LOG_DB_ACCESS = {}
-                        TRACE_LOGS = {}
-                        VERBOSE = {}
-                        VERBOSE_SHARD_LOGS = {}
-                        FROM_SHARD = {}
-                        TO_SHARD = {}
-                        SHARD_COUNT = {}
-                        NODE_NUMBER = {}""",
+                Environment variables set on this startup:
+                VERBOSE_SHARD_LOGS = {}
+                DEBUG = {}
+                DEBUG_LOGS = {}
+                LOG_DB_ACCESS = {}
+                TRACE_LOGS = {}
+                VERBOSE = {}
+                VERBOSE_SHARD_LOGS = {}
+                FROM_SHARD = {}
+                TO_SHARD = {}
+                SHARD_COUNT = {}
+                NODE_NUMBER = {}""",
                 ExtraRuntimeOptions.VERBOSE_SHARD_LOGS,
                 ExtraRuntimeOptions.DEBUG,
                 ExtraRuntimeOptions.DEBUG_LOGS,

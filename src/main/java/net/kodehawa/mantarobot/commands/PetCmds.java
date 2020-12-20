@@ -37,10 +37,10 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.awt.Color;
 import java.util.Arrays;
@@ -56,21 +56,11 @@ public class PetCmds {
         var rl = new IncreasingRateLimiter.Builder()
                 .limit(1)
                 .spamTolerance(2)
-                .cooldown(2, TimeUnit.SECONDS)
+                .cooldown(3, TimeUnit.SECONDS)
                 .maxCooldown(5, TimeUnit.SECONDS)
                 .randomIncrement(true)
                 .pool(MantaroData.getDefaultJedisPool())
                 .prefix("pet")
-                .build();
-
-        var patRatelimiter = new IncreasingRateLimiter.Builder()
-                .limit(1)
-                .spamTolerance(2)
-                .cooldown(40, TimeUnit.SECONDS)
-                .maxCooldown(3, TimeUnit.MINUTES)
-                .randomIncrement(true)
-                .pool(MantaroData.getDefaultJedisPool())
-                .prefix("pet-pat")
                 .build();
 
         var petRemoveRatelimiter = new IncreasingRateLimiter.Builder()
@@ -161,8 +151,9 @@ public class PetCmds {
 
                 }
 
+                var name = pet.getName().replace("\n", "").trim();
                 EmbedBuilder status = new EmbedBuilder()
-                        .setAuthor(String.format(language.get("commands.pet.status.header"), pet.getName()), null, ctx.getUser().getEffectiveAvatarUrl())
+                        .setAuthor(String.format(language.get("commands.pet.status.header"), name), null, ctx.getUser().getEffectiveAvatarUrl())
                         .setColor(Color.PINK)
                         .setDescription(language.get("commands.pet.status.description"))
                         .addField(
@@ -310,13 +301,14 @@ public class PetCmds {
                         return;
                     }
 
-                    if (!RatelimitUtils.ratelimit(patRatelimiter, ctx, null, false)) {
-                        return;
-                    }
-
                     var message = pet.handlePat().getMessage();
                     var extraMessage = "";
                     pet.increasePats();
+
+                    if (pet.getPatCounter() > 50_000_000) { // how?
+                        ctx.sendLocalized("commands.pet.pat.too_many");
+                        return;
+                    }
 
                     if (pet.getPatCounter() % 100 == 0) {
                         extraMessage += "\n\n" + String.format(ctx.getLanguageContext().get("commands.pet.pet_reactions.counter_100"), EmoteReference.BLUE_HEART);
@@ -325,7 +317,7 @@ public class PetCmds {
                     marriage.saveUpdating();
                     ctx.sendLocalized(message, pet.getType().getEmoji(), pet.getName(), pet.getPatCounter(), extraMessage);
                 });
-            };
+            }
         });
 
         pet.addSubCommand("buy", new SubCommand() {
@@ -355,7 +347,7 @@ public class PetCmds {
                     return;
                 }
 
-                var name = args[0];
+                var name = args[0].replace("\n", "").trim();
                 var type = args[1];
 
                 if (!marriageData.hasCar() || !marriageData.hasHouse()) {
@@ -390,6 +382,10 @@ public class PetCmds {
                     return;
                 }
 
+                if (name.length() > 150) {
+                    ctx.sendLocalized("commands.pet.buy.too_long", EmoteReference.ERROR);
+                    return;
+                }
 
                 ctx.sendLocalized("commands.pet.buy.confirm", EmoteReference.WARNING, name, type, toBuy.getCost());
                 InteractiveOperations.create(ctx.getChannel(), ctx.getAuthor().getIdLong(), 30, (e) -> {
@@ -462,8 +458,14 @@ public class PetCmds {
                     return;
                 }
 
+                content = content.replace("\n", "").trim();
                 if (content.isEmpty()) {
                     ctx.sendLocalized("commands.pet.rename.no_content", EmoteReference.ERROR);
+                    return;
+                }
+
+                if (content.length() > 150) {
+                    ctx.sendLocalized("commands.pet.buy.too_long", EmoteReference.ERROR);
                     return;
                 }
 
@@ -512,7 +514,6 @@ public class PetCmds {
 
                 var isFull = false;
                 if (args.length > 1) {
-                    food = args[0];
                     if (args[1].equalsIgnoreCase("full")) {
                         food = args[0];
                         isFull = true;
@@ -537,7 +538,7 @@ public class PetCmds {
                     return;
                 }
 
-                var item = ItemHelper.fromAnyNoId(food);
+                var item = ItemHelper.fromAnyNoId(food, ctx.getLanguageContext());
                 if (item.isEmpty()) {
                     ctx.sendLocalized("commands.pet.feed.no_item", EmoteReference.ERROR);
                     return;

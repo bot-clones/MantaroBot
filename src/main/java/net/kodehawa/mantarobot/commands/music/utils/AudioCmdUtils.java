@@ -30,15 +30,15 @@ import net.kodehawa.mantarobot.MantaroBot;
 import net.kodehawa.mantarobot.commands.music.GuildMusicManager;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 import net.kodehawa.mantarobot.utils.IntIntObjectFunction;
 import net.kodehawa.mantarobot.utils.StringUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -53,7 +53,7 @@ public class AudioCmdUtils {
 
     public static void embedForQueue(GuildMessageReceivedEvent event, GuildMusicManager musicManager, I18nContext lang) {
         final var trackScheduler = musicManager.getTrackScheduler();
-        final var toSend = getQueueList(trackScheduler.getQueue(), musicManager);
+        final var toSend = getQueueList(trackScheduler.getQueue());
         final var guild = event.getGuild();
         final var musicPlayer = trackScheduler.getMusicPlayer();
         final var playingTrack = musicPlayer.getPlayingTrack();
@@ -345,7 +345,7 @@ public class AudioCmdUtils {
         );
     }
 
-    public static String getQueueList(ConcurrentLinkedDeque<AudioTrack> queue, GuildMusicManager manager) {
+    public static String getQueueList(ConcurrentLinkedDeque<AudioTrack> queue) {
         var sb = new StringBuilder();
         var num = 1;
 

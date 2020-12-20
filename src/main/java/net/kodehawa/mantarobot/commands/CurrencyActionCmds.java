@@ -36,10 +36,10 @@ import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.db.entities.DBUser;
 import net.kodehawa.mantarobot.db.entities.Player;
 import net.kodehawa.mantarobot.utils.RandomCollection;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.campaign.Campaign;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -262,10 +262,8 @@ public class CurrencyActionCmds {
                     playerData.addBadgeIfAbsent(Badge.GEM_FINDER);
                 }
 
-                var key = MantaroData.db().getPremiumKey(userData.getPremiumKey());
                 if (random.nextInt(400) >= 392) {
-                    var crate = (key != null && key.getDurationDays() > 1) ?
-                            ItemReference.MINE_PREMIUM_CRATE : ItemReference.MINE_CRATE;
+                    var crate = dbUser.isPremium() ? ItemReference.MINE_PREMIUM_CRATE : ItemReference.MINE_CRATE;
 
                     if (inventory.getAmount(crate) + 1 > 5000) {
                         message += "\n" + languageContext.withRoot("commands", "mine.crate.overflow");
@@ -433,12 +431,12 @@ public class CurrencyActionCmds {
                         }
                     }
 
-                    //Basically more chance if you have a better rod.
+                    // Basically more chance if you have a better rod.
                     if (chance > (70 - nominalLevel)) {
                         money += Math.max(25, random.nextInt(130 + (3 * nominalLevel)));
                     }
 
-                    //START OF WAIFU HELP IMPLEMENTATION
+                    // START OF WAIFU HELP IMPLEMENTATION
                     boolean waifuHelp = false;
                     if (ItemHelper.handleEffect(
                             PlayerEquipment.EquipmentType.POTION, userData.getEquippedItems(), ItemReference.WAIFU_PILL, dbUser)) {
@@ -448,9 +446,9 @@ public class CurrencyActionCmds {
                             waifuHelp = true;
                         }
                     }
-                    //END OF WAIFU HELP IMPLEMENTATION
+                    // END OF WAIFU HELP IMPLEMENTATION
 
-                    //START OF FISH LOOT CRATE HANDLING
+                    // START OF FISH LOOT CRATE HANDLING
                     if (random.nextInt(400) > 380) {
                         var crate = dbUser.isPremium() ? ItemReference.FISH_PREMIUM_CRATE : ItemReference.FISH_CRATE;
 
@@ -462,7 +460,7 @@ public class CurrencyActionCmds {
                                     languageContext.get("commands.fish.crate.success").formatted(crate.getEmoji(), crate.getName());
                         }
                     }
-                    //END OF FISH LOOT CRATE HANDLING
+                    // END OF FISH LOOT CRATE HANDLING
 
                     if ((item == ItemReference.SPARKLE_ROD || item == ItemReference.HELLFIRE_ROD) && random.nextInt(30) > 20) {
 
@@ -663,7 +661,7 @@ public class CurrencyActionCmds {
                     var money = chance > 50 ? random.nextInt(100) : 0;
                     var amount = random.nextInt(8);
                     var moneyIncrease = item.getMoneyIncrease() <= 0 ? 1 : item.getMoneyIncrease();
-                    money += Math.max(moneyIncrease / 4, moneyIncrease);
+                    money += Math.max(moneyIncrease / 4, random.nextInt(moneyIncrease));
 
                     if (marriage != null && marriage.getData().getPet() != null) {
                         var pet = marriage.getData().getPet();
@@ -794,7 +792,7 @@ public class CurrencyActionCmds {
             var message = "\n" + pet.buildMessage(ability, languageContext, moneyIncrease, itemIncrease);
 
             return new HousePet.ActivityReward(itemIncrease, moneyIncrease, message);
-        } else if (!ability.passed() && !ability.getLanguageString().isEmpty()) {
+        } else if (!ability.getLanguageString().isEmpty()) {
             var message = "\n" + pet.buildMessage(ability, languageContext, 0, 0);
             return new HousePet.ActivityReward(0, 0, message);
         }

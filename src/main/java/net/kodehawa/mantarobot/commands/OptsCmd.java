@@ -33,13 +33,14 @@ import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.db.entities.DBGuild;
 import net.kodehawa.mantarobot.options.core.Option;
 import net.kodehawa.mantarobot.options.core.OptionType;
-import net.kodehawa.mantarobot.utils.*;
+import net.kodehawa.mantarobot.utils.StringUtils;
+import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static net.kodehawa.mantarobot.utils.Utils.mapConfigObjects;
 
@@ -72,7 +73,6 @@ public class OptsCmd {
 
                     var dividedMessages = DiscordUtils.divideString(builder);
                     List<String> messages = new LinkedList<>();
-
                     for (var msgs : dividedMessages) {
                         messages.add(String.format(languageContext.get("commands.opts.list.header"),
                                 ctx.hasReactionPerms() ? languageContext.get("general.text_menu") + " " :
@@ -120,10 +120,7 @@ public class OptsCmd {
                         }
                     }
 
-                    ctx.getChannel().sendMessageFormat(
-                            languageContext.get("commands.opts.option_not_found"), EmoteReference.ERROR
-                    ).queue(message -> message.delete().queueAfter(10, TimeUnit.SECONDS));
-
+                    ctx.sendLocalized("commands.opts.option_not_found", EmoteReference.ERROR);
                     return;
                 }
 
@@ -147,14 +144,8 @@ public class OptsCmd {
                                 a = StringUtils.EMPTY_ARRAY;
                             }
 
-                            callable.accept(ctx.getEvent(), a,
-                                    new I18nContext(
-                                            MantaroData.db().getGuild(ctx.getGuild()).getData(), MantaroData.db().getUser(ctx.getAuthor().getId()).getData()
-                                    )
-                            );
-
+                            callable.accept(ctx.getEvent(), a, new I18nContext(ctx.getDBGuild().getData(), ctx.getDBUser().getData()));
                             var player = MantaroData.db().getPlayer(ctx.getAuthor());
-
                             if (player.getData().addBadgeIfAbsent(Badge.DID_THIS_WORK)) {
                                 player.saveUpdating();
                             }

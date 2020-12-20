@@ -29,12 +29,11 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.base.ITreeCommand;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
-import java.awt.*;
-import java.util.List;
+import java.awt.Color;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -48,10 +47,6 @@ public class HelpCmd {
         var dbGuild = ctx.getDBGuild();
         var guildData = dbGuild.getData();
         var dbUser = ctx.getDBUser();
-
-        String defaultPrefix = ctx.getConfig().prefix[0], guildPrefix = guildData.getGuildCustomPrefix();
-        var prefix = guildPrefix == null ? defaultPrefix : guildPrefix;
-
         var languageContext = ctx.getLanguageContext();
 
         // Start building the help description.

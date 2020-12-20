@@ -32,11 +32,11 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -54,15 +54,14 @@ public class GameCmds {
     public void game(CommandRegistry cr) {
         final var rateLimiter = new IncreasingRateLimiter.Builder()
                 .limit(1)
-                .spamTolerance(1)
-                .cooldown(7, TimeUnit.SECONDS)
+                .spamTolerance(3)
+                .cooldown(5, TimeUnit.SECONDS)
                 .cooldownPenaltyIncrease(5, TimeUnit.SECONDS)
                 .maxCooldown(10, TimeUnit.MINUTES)
                 .pool(MantaroData.getDefaultJedisPool())
                 .premiumAware(true)
                 .prefix("game")
                 .build();
-        final var db = MantaroData.db();
 
         games.put("pokemon", (d) -> new Pokemon());
         games.put("number", (d) -> new GuessTheNumber());
@@ -111,9 +110,7 @@ public class GameCmds {
             }
         }));
 
-        gameCommand.setPredicate(ctx ->
-                RatelimitUtils.ratelimit(rateLimiter, ctx, null)
-        );
+        gameCommand.setPredicate(ctx -> RatelimitUtils.ratelimit(rateLimiter, ctx, null));
 
         //Sub-commands.
         gameCommand.addSubCommand("wins", new SubCommand() {
@@ -131,7 +128,7 @@ public class GameCmds {
                     }
 
                     ctx.sendStrippedLocalized("commands.game.won_games",
-                            EmoteReference.POPPER, member.getEffectiveName(), db.getPlayer(member).getData().getGamesWon()
+                            EmoteReference.POPPER, member.getEffectiveName(), ctx.getPlayer(member).getData().getGamesWon()
                     );
                 });
             }
@@ -150,41 +147,31 @@ public class GameCmds {
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
                 var guildData = ctx.getDBGuild().getData();
-
                 if (guildData.isGameMultipleDisabled()) {
                     ctx.sendLocalized("commands.game.disabled_multiple", EmoteReference.ERROR);
                     return;
                 }
 
-                var arguments = ctx.getOptionalArguments();
-                var difficultyArgument = "diff";
-                content = Utils.replaceArguments(arguments, content, difficultyArgument);
+                var args = ctx.getOptionalArguments();
+                var difficulty = getTriviaDifficulty(ctx);
+                content = Utils.replaceArguments(args, content, "diff");
+                if (difficulty != null) {
+                    content = content.replace(args.get("diff"), "").trim();
+                }
 
                 if (content.isEmpty()) {
                     ctx.sendLocalized("commands.game.nothing_specified", EmoteReference.ERROR);
                     return;
                 }
 
-                TriviaDifficulty difficulty = null;
-                if (arguments.containsKey(difficultyArgument) && arguments.get(difficultyArgument) != null) {
-                    var diff = arguments.get(difficultyArgument);
-                    var enumDiff = Utils.lookupEnumString(diff, TriviaDifficulty.class);
-                    if (enumDiff != null) {
-                        difficulty = enumDiff;
-                        content = content.replace(diff, "").trim();
-                    }
-                }
-
-                //Stripe all mentions from this.
                 var split = Utils.mentionPattern.matcher(content).replaceAll("").split(", ");
-
                 if (split.length <= 1) {
                     ctx.sendLocalized("commands.game.not_enough_games", EmoteReference.ERROR);
                     return;
                 }
 
-                var userData = db.getUser(ctx.getAuthor()).getData();
-                var key = db.getPremiumKey(userData.getPremiumKey());
+                var userData = ctx.getDBUser().getData();
+                var key = MantaroData.db().getPremiumKey(userData.getPremiumKey());
                 var premium = key != null && key.getDurationDays() > 1;
                 if (split.length > (premium ? 8 : 5)) {
                     ctx.sendLocalized("commands.game.too_many_games", EmoteReference.ERROR);
@@ -219,39 +206,34 @@ public class GameCmds {
         gameCommand.addSubCommand("multiple", new SubCommand() {
             @Override
             public String description() {
-                return "Starts multiple instances of one game, for example `~>game multiple trivia 5` will start trivia 5 times.";
+                return """
+                        Starts multiple instances of one game. For example `~>game multiple trivia 5` will start trivia 5 times.
+                        To do it with multiple users, you can use `~>game multiple <game> [@user...] <amount>`
+                        """;
             }
 
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
                 var guildData = ctx.getDBGuild().getData();
-
                 if (guildData.isGameMultipleDisabled()) {
                     ctx.sendLocalized("commands.game.disabled_multiple", EmoteReference.ERROR);
                     return;
                 }
 
-                var arguments = ctx.getOptionalArguments();
-                var difficultyArgument = "diff";
-                content = Utils.replaceArguments(arguments, content, difficultyArgument);
-
-                //Trivia difficulty handling.
-                TriviaDifficulty difficulty = null;
-
-                if (arguments.containsKey(difficultyArgument) && arguments.get(difficultyArgument) != null) {
-                    var d = arguments.get(difficultyArgument);
-                    var enumDiff = Utils.lookupEnumString(d, TriviaDifficulty.class);
-
-                    if (enumDiff != null) {
-                        difficulty = enumDiff;
-                        content = content.replace(d, "").trim();
-                    }
+                content = Utils.replaceArguments(ctx.getOptionalArguments(), content, "diff");
+                if (content.isEmpty()) {
+                    ctx.sendLocalized("commands.game.nothing_specified", EmoteReference.ERROR);
+                    return;
                 }
-                //End of trivia difficulty handling.
+
+                var difficulty = getTriviaDifficulty(ctx);
+                var args = ctx.getOptionalArguments();
+                if (difficulty != null) {
+                    content = content.replace(args.get("diff"), "").trim();
+                }
 
                 var strippedContent = Utils.mentionPattern.matcher(content).replaceAll("");
                 var values = SPLIT_PATTERN.split(strippedContent, 2);
-
                 if (values.length < 2) {
                     ctx.sendLocalized("commands.game.multiple.invalid", EmoteReference.ERROR);
                     return;
@@ -289,7 +271,7 @@ public class GameCmds {
                     gameList.add(g);
                 }
 
-                //No games queued?
+                // No games queued?
                 if (gameList.isEmpty()) {
                     ctx.sendLocalized("commands.game.multiple.invalid", EmoteReference.ERROR);
                     return;
@@ -428,7 +410,21 @@ public class GameCmds {
             }
         }
 
-        //not currently running
+        // not currently running
         return false;
+    }
+
+    private TriviaDifficulty getTriviaDifficulty(Context ctx) {
+        var arguments = ctx.getOptionalArguments();
+        TriviaDifficulty difficulty = null;
+        var arg = arguments.get("diff");
+        if (arg != null) {
+            var enumDiff = Utils.lookupEnumString(arg, TriviaDifficulty.class);
+            if (enumDiff != null) {
+                difficulty = enumDiff;
+            }
+        }
+
+        return difficulty;
     }
 }

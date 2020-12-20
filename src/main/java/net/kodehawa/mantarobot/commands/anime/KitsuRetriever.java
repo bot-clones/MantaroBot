@@ -16,7 +16,7 @@
 
 package net.kodehawa.mantarobot.commands.anime;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import net.kodehawa.mantarobot.MantaroInfo;
 import net.kodehawa.mantarobot.utils.data.JsonDataManager;
 import okhttp3.Request;
@@ -25,49 +25,44 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 
 import static net.kodehawa.mantarobot.utils.Utils.httpClient;
 
 public class KitsuRetriever {
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     public static List<CharacterData> searchCharacters(String name) throws IOException {
-        var request = new Request.Builder()
-                .url(
-                        String.format("https://kitsu.io/api/edge/characters?filter[name]=%s",
-                                URLEncoder.encode(name, StandardCharsets.UTF_8)
-                        )
-                )
-                .addHeader("User-Agent", MantaroInfo.USER_AGENT)
-                .get()
-                .build();
-
-        var response = httpClient.newCall(request).execute();
-        var body = response.body().string();
-        response.close();
-
-        var json = new JSONObject(body);
-        var arr = json.getJSONArray("data");
-
-        return JsonDataManager.fromJson(arr.toString(), new TypeReference<>() { });
+        return search0("characters", "name", name, CharacterData.class);
     }
 
     public static List<AnimeData> searchAnime(String name) throws IOException {
+        return search0("anime", "text", name, AnimeData.class);
+    }
+    
+    private static <T> List<T> search0(String type, String filter, String search, Class<T> clazz) throws IOException {
         var request = new Request.Builder()
-                .url(
-                        String.format("https://kitsu.io/api/edge/anime?filter[text]=%s",
-                                URLEncoder.encode(name, StandardCharsets.UTF_8)
-                        )
+                .url(String.format("https://kitsu.io/api/edge/%s?filter[%s]=%s",
+                        type, filter, URLEncoder.encode(search, StandardCharsets.UTF_8))
                 )
                 .addHeader("User-Agent", MantaroInfo.USER_AGENT)
                 .get()
                 .build();
 
         var response = httpClient.newCall(request).execute();
-        var body = response.body().string();
-        response.close();
+        var responseBody = response.body();
+        if (responseBody == null) {
+            return Collections.emptyList();
+        }
 
+        var body = responseBody.string();
         var json = new JSONObject(body);
         var arr = json.getJSONArray("data");
-        return JsonDataManager.fromJson(arr.toString(), new TypeReference<>() { });
+
+        response.close();
+        // Can't do type inference with a generic method.
+        var clazzType = mapper.getTypeFactory().constructCollectionType(List.class, clazz);
+        return JsonDataManager.fromJson(arr.toString(), clazzType);
     }
 }

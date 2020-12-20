@@ -30,10 +30,10 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -214,9 +214,20 @@ public class MusicUtilCmds {
                     var link = audioManager.getMusicManager(guild).getLavaLink();
 
                     try {
-                        var vc = ctx.getMember().getVoiceState().getChannel();
+                        var voiceState = ctx.getMember().getVoiceState();
+                        var botVoiceState =  ctx.getSelfMember().getVoiceState();
+                        if (voiceState == null || botVoiceState == null) {
+                            ctx.sendLocalized("commands.move.no_voice", EmoteReference.ERROR);
+                            return;
+                        }
 
-                        if (vc != guild.getMember(ctx.getSelfUser()).getVoiceState().getChannel()) {
+                        var vc = voiceState.getChannel();
+                        if (vc == null) {
+                            ctx.sendLocalized("commands.move.no_voice", EmoteReference.ERROR);
+                            return;
+                        }
+
+                        if (vc != botVoiceState.getChannel()) {
                             ctx.sendLocalized("commands.move.attempt", EmoteReference.THINKING);
                             AudioCmdUtils.openAudioConnection(ctx.getEvent(), link, vc, ctx.getLanguageContext());
                             return;

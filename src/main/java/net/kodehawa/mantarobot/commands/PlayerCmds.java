@@ -44,12 +44,12 @@ import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.db.entities.DBUser;
 import net.kodehawa.mantarobot.db.entities.Player;
 import net.kodehawa.mantarobot.db.entities.helpers.PlayerData;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.awt.Color;
 import java.time.OffsetDateTime;
@@ -178,7 +178,8 @@ public class PlayerCmds {
                 var isSeasonal = ctx.isSeasonal();
                 content = Utils.replaceArguments(ctx.getOptionalArguments(), content, "s", "season");
 
-                var item = ItemHelper.fromAnyNoId(content.replace("\"", "")).orElse(null);
+                var item = ItemHelper.fromAnyNoId(content.replace("\"", ""), ctx.getLanguageContext())
+                        .orElse(null);
 
                 var player = ctx.getPlayer();
                 var dbUser = ctx.getDBUser();
@@ -282,21 +283,15 @@ public class PlayerCmds {
 
                         var equipmentFinal = isSeasonal ? seasonalPlayerData.getEquippedItems() : dbUserData.getEquippedItems();
                         var equippedFinal = equipmentFinal.getEquipment().get(type);
-                        var equippedItemFinal = ItemHelper.fromId(equippedFinal);
+                        if (equippedFinal == null) {
+                            ctx.sendLocalized("commands.profile.unequip.not_equipped", EmoteReference.ERROR);
+                            return InteractiveOperation.COMPLETED;
+                        }
 
+                        var equippedItemFinal = ItemHelper.fromId(equippedFinal);
                         var part = ""; //Start as an empty string.
                         if (equippedItemFinal instanceof Breakable) {
                             // Gotta check again, just in case...
-                            if (equippedFinal == null) {
-                                ctx.sendLocalized("commands.profile.unequip.not_equipped", EmoteReference.ERROR);
-                                return InteractiveOperation.COMPLETED;
-                            }
-
-                            if (equippedItemFinal == null) {
-                                ctx.sendLocalized("commands.profile.unequip.not_equipped", EmoteReference.ERROR);
-                                return InteractiveOperation.COMPLETED;
-                            }
-
                             var item = (Breakable) equippedItemFinal;
 
                             var percentage = ((float) equipmentFinal.getDurability().get(type) / (float) item.getMaxDurability()) * 100.0f;

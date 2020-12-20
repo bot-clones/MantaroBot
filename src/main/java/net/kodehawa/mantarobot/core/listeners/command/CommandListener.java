@@ -24,8 +24,7 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.PermissionException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.kodehawa.mantarobot.commands.currency.profile.Badge;
-import net.kodehawa.mantarobot.commands.custom.EmbedJSON;
-import net.kodehawa.mantarobot.commands.custom.legacy.DynamicModifiers;
+import net.kodehawa.mantarobot.commands.game.core.GameLobby;
 import net.kodehawa.mantarobot.core.command.processor.CommandProcessor;
 import net.kodehawa.mantarobot.core.listeners.entities.CachedMessage;
 import net.kodehawa.mantarobot.core.listeners.operations.InteractiveOperations;
@@ -35,7 +34,6 @@ import net.kodehawa.mantarobot.utils.LanguageKeyNotFoundException;
 import net.kodehawa.mantarobot.utils.Snow64;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.RateLimiter;
-import net.kodehawa.mantarobot.utils.data.JsonDataManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 public class CommandListener implements EventListener {
     private static final RateLimiter experienceRatelimiter = new RateLimiter(TimeUnit.SECONDS, 18);
     private static final Logger log = LoggerFactory.getLogger(CommandListener.class);
-    //Commands ran this session.
+    // Commands ran this session.
     private static int commandTotal = 0;
     private final Random random = new Random();
     private final CommandProcessor commandProcessor;
@@ -69,13 +67,21 @@ public class CommandListener implements EventListener {
     public void onEvent(@NotNull GenericEvent event) {
         if (event instanceof GuildMessageReceivedEvent) {
             var msg = (GuildMessageReceivedEvent) event;
-            //Inserts a cached message into the cache. This only holds the id and the content, and is way lighter than saving the entire jda object.
+            // Ignore myself and bots.
+            // Technically ignoring oneself is an extra step -- we're a bot, and we ignore bots.
+            var isSelf = msg.getAuthor().getIdLong() == msg.getJDA().getSelfUser().getIdLong();
+            if (msg.getAuthor().isBot() || msg.isWebhookMessage() || isSelf) {
+                return;
+            }
+
+            // Inserts a cached message into the cache. This only holds the id and the content, and is way lighter than saving the entire jda object.
             messageCache.put(msg.getMessage().getIdLong(), Optional.of(
                     new CachedMessage(msg.getGuild().getIdLong(), msg.getAuthor().getIdLong(), msg.getMessage().getContentDisplay()))
             );
 
-            //Ignore myself and bots.
-            if (msg.getAuthor().isBot() || msg.isWebhookMessage() || msg.getAuthor().equals(msg.getJDA().getSelfUser())) {
+            // We can't talk here, so we don't need to run anything.
+            // Run this check before executing on the pool to avoid wasting a thread.
+            if (!msg.getChannel().canTalk()) {
                 return;
             }
 
@@ -85,11 +91,6 @@ public class CommandListener implements EventListener {
 
     private void onCommand(GuildMessageReceivedEvent event) {
         try {
-            var self = event.getGuild().getSelfMember();
-            if (!self.getPermissions(event.getChannel()).contains(Permission.MESSAGE_WRITE) && !self.hasPermission(Permission.ADMINISTRATOR)) {
-                return;
-            }
-
             if (commandProcessor.run(event)) {
                 // Remove running flag
                 try (var jedis = MantaroData.getDefaultJedisPool().getResource()) {
@@ -98,9 +99,8 @@ public class CommandListener implements EventListener {
 
                 commandTotal++;
             } else {
-                // Only run experience if no command has been executed, avoids weird race conditions when saving player status.
-                // With nodes, this could still be a little cursed. Maybe a redis lock?
                 try {
+                    // Only run experience if no command has been executed, avoids weird race conditions when saving player status.
                     // Only run experience if the user is not rate limited (clears every 30 seconds) and if the member is not null.
                     // This will never get here if it's a bot or a webhook message due to the check we do on line 78.
                     if (random.nextInt(15) > 7 && event.getMember() != null && experienceRatelimiter.process(event.getAuthor())) {
@@ -112,46 +112,33 @@ public class CommandListener implements EventListener {
                             }
                         }
 
-                        //Don't run the experience handler on this channel if there's an InteractiveOperation running as there might be issues with
-                        //some nasty race conditions involving player save.
+                        // Don't run the experience handler on this channel if there's an InteractiveOperation running as there might be issues with
+                        // some nasty race conditions involving player save.
                         if (InteractiveOperations.get(event.getChannel()).size() > 0) {
+                            return;
+                        }
+
+                        // Same reason as above, but twice as cursed.
+                        if (GameLobby.LOBBYS.containsKey(event.getChannel().getIdLong())) {
                             return;
                         }
 
                         var player = MantaroData.db().getPlayer(event.getAuthor());
                         var data = player.getData();
-
                         if (player.isLocked()) {
                             return;
                         }
 
-                        //Set level to 1 if level is zero.
+                        // Set level to 1 if level is zero.
                         if (player.getLevel() == 0) {
                             player.setLevel(1);
                         }
 
                         // Increment player experience by a random number between 1 and 5.
                         data.setExperience(data.getExperience() + random.nextInt(5));
-                        // Apply some black magic.
                         var level = player.getLevel();
                         if (data.getExperience() > (level * Math.log10(player.getLevel()) * 1000) + (50 * level / 2D)) {
                             player.setLevel(level + 1);
-                            var newLevel = player.getLevel();
-
-                            if (newLevel > 1) {
-                                var dbGuild = MantaroData.db().getGuild(event.getGuild());
-                                var guildData = dbGuild.getData();
-
-                                if (guildData.isEnabledLevelUpMessages()) {
-                                    String levelUpChannel = guildData.getLevelUpChannel();
-                                    String levelUpMessage = guildData.getLevelUpMessage();
-
-                                    //Player has leveled up!
-                                    if (levelUpMessage != null && levelUpChannel != null) {
-                                        processMessage(newLevel, levelUpMessage, levelUpChannel, event);
-                                    }
-                                }
-                            }
                         }
 
                         player.saveUpdating();
@@ -160,34 +147,45 @@ public class CommandListener implements EventListener {
             }
         } catch (IndexOutOfBoundsException e) {
             var id = Snow64.toSnow64(event.getMessage().getIdLong());
-            event.getChannel().sendMessage(EmoteReference.ERROR +
-                    String.format(
-                            "Your query returned no results or you used the incorrect arguments, seemingly (Error ID: `%s`). Just in case, check command help!",
-                            id
-                    )
+            event.getChannel().sendMessageFormat(
+                    "%sYour query returned no results or you used the incorrect arguments, seemingly (Error ID: `%s`). Just in case, check command help!",
+                    EmoteReference.ERROR, id
             ).queue();
 
             log.warn("Exception caught and alternate message sent. We should look into this, anyway (ID: {})", id, e);
         } catch (PermissionException e) {
             if (e.getPermission() != Permission.UNKNOWN) {
-                event.getChannel().sendMessage(String.format("%sI don't have permission to do this :(\nI need the permission: **%s**", EmoteReference.ERROR, e.getPermission().getName())).queue();
+                event.getChannel().sendMessageFormat(
+                        "%sI don't have permission to do this :(\nI need the permission: **%s**",
+                        EmoteReference.ERROR, e.getPermission().getName()
+                ).queue();
             } else {
-                event.getChannel().sendMessage(EmoteReference.ERROR + "I cannot perform this action due to the lack of permission! Is the role I might be trying to assign" +
-                        " higher than my role? Do I have the correct permissions/hierarchy to perform this action?").queue();
+                event.getChannel().sendMessage(
+                        EmoteReference.ERROR +
+                        "I cannot perform this action due to the lack of permission! Is the role I might be trying to assign " +
+                        "higher than my role? Do I have the correct permissions/hierarchy to perform this action?"
+                ).queue();
             }
         } catch (LanguageKeyNotFoundException e) {
             var id = Snow64.toSnow64(event.getMessage().getIdLong());
-            event.getChannel().sendMessageFormat("%sWrong I18n key found, please report on the support server " +
-                    "(Link at `support.mantaro.site`) with error ID `%s`.\n%sMessage: *%s*", EmoteReference.ERROR, id, EmoteReference.ZAP, e.getMessage()).queue();
+            event.getChannel().sendMessageFormat(
+                    "%sWrong I18n key found, please report on the support server (At <https://support.mantaro.site>) with error ID `%s`.\n%sMessage: *%s*",
+                    EmoteReference.ERROR, id, EmoteReference.ZAP, e.getMessage()
+            ).queue();
+
             log.warn("Missing i18n key. Check this. ID: {}", id, e);
         } catch (IllegalArgumentException e) { //NumberFormatException == IllegalArgumentException
             var id = Snow64.toSnow64(event.getMessage().getIdLong());
-            event.getChannel().sendMessageFormat("%sI think you forgot something on the floor. (Maybe we threw it there? Just in case, the error id is `%s`)\n" +
-                    "%sCould be an internal error, but check the command arguments or maybe the message I'm trying to send exceeds 2048 characters, Just in case, check command help! " +
-                    "(Support server link can be found at `support.mantaro.site`)", EmoteReference.ERROR, id, EmoteReference.WARNING).queue();
+            event.getChannel().sendMessageFormat(
+                    "%sI think you forgot something on the floor. (Error ID: `%s`)\n" +
+                    "%sCould be an internal error, but check the command arguments or maybe the message I'm trying to send exceeds 2048 characters, " +
+                    "Just in case, check command help! (If you need further help, go to <https://support.mantaro.site>)",
+                    EmoteReference.ERROR, id, EmoteReference.WARNING
+            ).queue();
+
             log.warn("Exception caught and alternate message sent. We should look into this, anyway (ID: {})", id, e);
         } catch (ReqlError e) {
-            //So much just went wrong...
+            // So much just went wrong...
             e.printStackTrace();
         } catch (Exception e) {
             var context = I18n.of(event.getGuild());
@@ -195,50 +193,15 @@ public class CommandListener implements EventListener {
             var player = MantaroData.db().getPlayer(event.getAuthor());
 
             event.getChannel().sendMessageFormat(
-                    "%s%s (Unexpected error, ID: `%s`)\n" + context.get("general.generic_error"), EmoteReference.ERROR, context.get("general.boom_quotes"), id
+                    "%s%s (Unexpected error, ID: `%s`)\n%s",
+                    EmoteReference.ERROR, context.get("general.boom_quotes"), id, context.get("general.generic_error")
             ).queue();
 
             if (player.getData().addBadgeIfAbsent(Badge.FIRE)) {
                 player.saveUpdating();
             }
 
-            log.error("Error happened with id: {} (Error ID: {})", event.getMessage().getContentRaw(), id, e);
+            log.error("Error happened on command: {} (Error ID: {})", event.getMessage().getContentRaw(), id, e);
         }
-    }
-
-    private void processMessage(long level, String message, String channel, GuildMessageReceivedEvent event) {
-        var tc = event.getGuild().getTextChannelById(channel);
-
-        if (tc == null) {
-            return;
-        }
-
-        if (message.contains("$(")) {
-            message = new DynamicModifiers()
-                    .mapEvent("", "event", event)
-                    .set("level", String.valueOf(level))
-                    .resolve(message);
-        }
-
-        var c = message.indexOf(':');
-        if (c != -1) {
-            var m = message.substring(0, c);
-            var v = message.substring(c + 1);
-
-            if (m.equals("embed")) {
-                EmbedJSON embed;
-                try {
-                    embed = JsonDataManager.fromJson('{' + v + '}', EmbedJSON.class);
-                } catch (Exception ignored) {
-                    tc.sendMessage(EmoteReference.ERROR2 + "The string `{" + v + "}` isn't a valid JSON.").queue();
-                    return;
-                }
-
-                tc.sendMessage(embed.gen(event.getMember())).queue();
-                return;
-            }
-        }
-
-        tc.sendMessage(message).queue();
     }
 }

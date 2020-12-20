@@ -29,10 +29,10 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.RPGDice;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -250,11 +250,11 @@ public class FunCmds {
                     ids[1] = mentioned.get(0).getIdLong();
                 }
 
-                var percentage = (ids[0] == ids[1] ? 101 : random.nextInt(101)); //last value is exclusive, so 101.
+                var percentage = (ids[0] == ids[1] ? 101 : random.nextInt(101)); // last value is exclusive, so 101.
                 var languageContext = ctx.getLanguageContext();
 
                 final var marriage = ctx.getMarriage(ctx.getDBUser().getData());
-                if (marriage != null) {
+                if (marriage != null && mentioned.size() == 1) {
                     final var other = marriage.getOtherPlayer(ctx.getAuthor().getId());
                     if (other.equals(mentioned.get(0).getId())) {
                         percentage = 100;

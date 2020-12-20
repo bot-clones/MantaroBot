@@ -30,12 +30,12 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.campaign.Campaign;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDate;
@@ -304,8 +304,8 @@ public class MoneyCmds {
         final IncreasingRateLimiter rateLimiter = new IncreasingRateLimiter.Builder()
                 .limit(1)
                 .spamTolerance(2)
-                .cooldown(5, TimeUnit.MINUTES)
-                .maxCooldown(5, TimeUnit.MINUTES)
+                .cooldown(3, TimeUnit.MINUTES)
+                .maxCooldown(3, TimeUnit.MINUTES)
                 .randomIncrement(false)
                 .premiumAware(true)
                 .pool(MantaroData.getDefaultJedisPool())

@@ -32,13 +32,13 @@ import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.utils.APIUtils;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 import net.kodehawa.mantarobot.utils.StringUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import org.apache.commons.text.StringEscapeUtils;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.stream.Collectors;
 
 @Module
@@ -87,6 +87,7 @@ public class AnimeCmds {
                     npe.printStackTrace();
                     ctx.sendLocalized("commands.anime.malformed_result", EmoteReference.ERROR);
                 } catch (Exception ex) {
+                    ex.printStackTrace();
                     ctx.sendLocalized("commands.anime.error", EmoteReference.ERROR, ex.getClass().getSimpleName());
                 }
             }
@@ -227,15 +228,14 @@ public class AnimeCmds {
                     StringEscapeUtils.unescapeHtml4(
                             attributes.getDescription().replace("<br>", "\n")
                                     .replaceAll("<.*?>", "")
-                    ); //This is silly.
+                    ); // This is silly.
 
             var charDescription = "";
-
             if (attributes.getDescription() == null || attributes.getDescription().isEmpty()) {
                 charDescription = lang.get("commands.character.no_info");
+            } else {
+                charDescription = StringUtils.limit(characterDescription, 1016);
             }
-
-            charDescription = StringUtils.limit(characterDescription, 1016);
 
             var player = MantaroData.db().getPlayer(event.getAuthor());
             var badge =

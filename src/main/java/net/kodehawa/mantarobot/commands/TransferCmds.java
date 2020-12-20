@@ -29,11 +29,11 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.RateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.text.ParsePosition;
 import java.time.OffsetDateTime;
@@ -111,7 +111,7 @@ public class TransferCmds {
                     return;
                 }
 
-                if (ItemHelper.fromAnyNoId(args[1]).isPresent()) {
+                if (ItemHelper.fromAnyNoId(args[1], ctx.getLanguageContext()).isPresent()) {
                     ctx.sendLocalized("commands.transfer.item_transfer", EmoteReference.ERROR);
                     return;
                 }
@@ -169,8 +169,13 @@ public class TransferCmds {
             @Override
             public HelpContent help() {
                 return new HelpContent.Builder()
-                        .setDescription("Transfers money from you to another player.\n" +
-                                "The maximum amount you can transfer at once is " + TRANSFER_LIMIT + " credits.")
+                        .setDescription(
+                                """
+                                Transfers money from you to another player.
+                                The maximum amount you can transfer at once is %s credits.
+                                Current tax rate is 8%%.
+                                """.formatted(TRANSFER_LIMIT)
+                        )
                         .setUsage("`~>transfer <@user> <money>` - Transfers money to x player")
                         .addParameter("@user", "The user to send the money to. You have to mention (ping) the user.")
                         .addParameter("money", "How much money to transfer.")
@@ -234,9 +239,9 @@ public class TransferCmds {
                     return;
                 }
 
-                var item = ItemHelper.fromAnyNoId(args[1]).orElse(null);
+                var item = ItemHelper.fromAnyNoId(args[1], ctx.getLanguageContext()).orElse(null);
                 if (item == null) {
-                    item = ItemHelper.fromAnyNoId(args[0]).orElse(null);
+                    item = ItemHelper.fromAnyNoId(args[0], ctx.getLanguageContext()).orElse(null);
                     if (item == null) {
                         ctx.sendLocalized("general.item_lookup.no_item_emoji");
                         return;

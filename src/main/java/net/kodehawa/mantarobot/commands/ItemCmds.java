@@ -38,17 +38,16 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.StringUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.campaign.Campaign;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
-import java.awt.*;
+import java.awt.Color;
 import java.security.SecureRandom;
-import java.util.List;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -98,11 +97,11 @@ public class ItemCmds {
                         var userData = user.getData();
 
                         //Why
-                        var toCast = ItemHelper.fromAnyNoId(arguments[0]);
+                        var toCast = ItemHelper.fromAnyNoId(arguments[0], ctx.getLanguageContext());
                         Optional<Item> optionalWrench = Optional.empty();
 
                         if (arguments.length > 1)
-                            optionalWrench = ItemHelper.fromAnyNoId(arguments[1]);
+                            optionalWrench = ItemHelper.fromAnyNoId(arguments[1], ctx.getLanguageContext());
 
                         if (toCast.isEmpty()) {
                             ctx.sendLocalized("commands.cast.no_item_found", EmoteReference.ERROR);
@@ -391,13 +390,13 @@ public class ItemCmds {
                         var user = ctx.getDBUser();
 
                         var itemString = args[0];
-                        var item = ItemHelper.fromAnyNoId(itemString).orElse(null);
+                        var item = ItemHelper.fromAnyNoId(itemString, ctx.getLanguageContext()).orElse(null);
                         var playerInventory = isSeasonal ? seasonalPlayer.getInventory() : player.getInventory();
                         var wrench = playerInventory.containsItem(ItemReference.WRENCH_SPARKLE) ?
                                 ItemReference.WRENCH_SPARKLE : ItemReference.WRENCH_COMET;
 
                         if (args.length > 1) {
-                            wrench = ItemHelper.fromAnyNoId(args[1]).orElse(null);
+                            wrench = ItemHelper.fromAnyNoId(args[1], ctx.getLanguageContext()).orElse(null);
                         }
 
                         if (item == null) {
@@ -549,7 +548,6 @@ public class ItemCmds {
                         .setFooter(languageContext.get("general.requested_by").formatted(ctx.getMember().getEffectiveName(), null));
 
                 for (var item : repairableItems) {
-                    //Build recipe explanation
                     if (item.getRecipe().isEmpty()) {
                         continue;
                     }
@@ -563,24 +561,22 @@ public class ItemCmds {
                         var amount = Integer.parseInt(split[0]);
                         var needed = ItemHelper.fromId(Integer.parseInt(split[1]));
 
-                        recipeString.append(amount).append("x ")
-                                .append(needed.getEmoji())
+                        recipeString.append(needed.getEmoji())
+                                .append(" ")
+                                .append(amount).append("x ")
                                 .append(" *")
                                 .append(needed.getName())
                                 .append("*|");
                     }
 
-                    //End of build recipe explanation
-                    //This is still, but if it works it works.
                     var recipe = String.join(", ", recipeString.toString().split("\\|"));
                     var repairCost = item.getValue() / 3;
 
                     fields.add(new MessageEmbed.Field("%s %s".formatted(item.getEmoji(), item.getName()),
-                            "%s\n**%s** %s.\n**Recipe: **%s\n**Item: ** %s %s".formatted(
+                            "%s\n**%s** %s %s\n**Recipe: **%s\n**Item: ** %s %s".formatted(
                                     languageContext.get(item.getDesc()),
                                     languageContext.get("commands.repair.ls.cost"),
-                                    repairCost,
-                                    languageContext.get("commands.gamble.credits"),
+                                    repairCost, languageContext.get("commands.gamble.credits"),
                                     recipe,
                                     mainItem.getEmoji(), mainItem.getName()
                             ), false)
@@ -625,13 +621,13 @@ public class ItemCmds {
 
                         final var args = ctx.getArguments();
                         final var itemString = args[0];
-                        final var item = ItemHelper.fromAnyNoId(itemString).orElse(null);
+                        final var item = ItemHelper.fromAnyNoId(itemString, ctx.getLanguageContext()).orElse(null);
                         final var playerInventory = isSeasonal ? seasonalPlayer.getInventory() : player.getInventory();
                         var wrench = playerInventory.containsItem(ItemReference.WRENCH_SPARKLE) ?
                                 ItemReference.WRENCH_SPARKLE : ItemReference.WRENCH_COMET;
                         var custom = false;
                         if (args.length > 1) {
-                            wrench = ItemHelper.fromAnyNoId(args[1]).orElse(null);
+                            wrench = ItemHelper.fromAnyNoId(args[1], ctx.getLanguageContext()).orElse(null);
                             custom = true;
                         }
 
@@ -647,7 +643,6 @@ public class ItemCmds {
 
                         final var broken = (Broken) item;
                         final var original = ItemHelper.fromId(broken.getMainItem());
-
                         if (!(original instanceof Salvageable)) {
                             ctx.sendLocalized("commands.salvage.cant_salvage", EmoteReference.ERROR, item.getName());
                             return;
@@ -807,8 +802,7 @@ public class ItemCmds {
                     return;
                 }
 
-                var itemOptional = ItemHelper.fromAnyNoId(content.replace("\"", ""));
-
+                var itemOptional = ItemHelper.fromAnyNoId(content.replace("\"", ""), ctx.getLanguageContext());
                 if (itemOptional.isEmpty()) {
                     ctx.sendLocalized("commands.iteminfo.no_item", EmoteReference.ERROR);
                     return;

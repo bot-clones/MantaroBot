@@ -32,7 +32,6 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.db.entities.DBGuild;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 
 import java.time.OffsetDateTime;
@@ -58,32 +57,32 @@ public class MessageCmds {
                         }
 
                         var mentionedUsers = ctx.getMentionedUsers();
-
                         var amount = 5;
-                        if (args.length >= 1) {
+                        if (args.length > 0) {
                             try {
-                                amount = Integer.parseInt(args.length == 1 ? content : args[0]);
-                                if (amount < 3) amount = 3;
+                                amount = Integer.parseInt(args[0]);
+                                if (amount < 3) {
+                                    amount = 3;
+                                }
                             } catch (Exception e) {
                                 ctx.sendLocalized("commands.prune.not_valid", EmoteReference.ERROR);
                                 return;
                             }
                         }
 
-
                         if (!mentionedUsers.isEmpty()) {
                             List<Long> users = mentionedUsers.stream().map(User::getIdLong).collect(Collectors.toList());
-                            ctx.getChannel().getHistory().retrievePast(Math.min(amount, 100)).queue(
-                                    messageHistory -> getMessageHistory(
-                                            ctx, messageHistory, "commands.prune.mention_no_messages",
-                                            message -> users.contains(message.getAuthor().getIdLong())
-                                    ), error -> {
-                                        ctx.sendLocalized("commands.prune.error_retrieving",
-                                                EmoteReference.ERROR, error.getClass().getSimpleName(), error.getMessage()
-                                        );
-
-                                        error.printStackTrace();
-                                    });
+                            final var finalAmount = amount;
+                            ctx.getChannel().getHistory().retrievePast(100).queue(
+                                    messageHistory ->
+                                        getMessageHistory(ctx, messageHistory, finalAmount,
+                                                "commands.prune.mention_no_messages",
+                                                message -> users.contains(message.getAuthor().getIdLong())
+                                        ), error ->
+                                            ctx.sendLocalized("commands.prune.error_retrieving",
+                                                    EmoteReference.ERROR, error.getClass().getSimpleName(), error.getMessage()
+                                            )
+                            );
 
                             return;
                         }
@@ -113,6 +112,21 @@ public class MessageCmds {
             }
         });
 
+
+        pruneCmd.setPredicate(ctx -> {
+            if (!ctx.getMember().hasPermission(Permission.MESSAGE_MANAGE)) {
+                ctx.sendLocalized("commands.prune.no_permissions_user", EmoteReference.ERROR);
+                return false;
+            }
+
+            if (!ctx.getSelfMember().hasPermission(Permission.MESSAGE_MANAGE)) {
+                ctx.sendLocalized("commands.prune.no_permissions", EmoteReference.ERROR);
+                return false;
+            }
+
+            return true;
+        });
+
         pruneCmd.addSubCommand("bot", new SubCommand() {
             @Override
             public String description() {
@@ -122,7 +136,6 @@ public class MessageCmds {
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
                 var args = ctx.getArguments();
-
                 var amount = 100;
                 if (args.length >= 1) {
                     try {
@@ -136,12 +149,14 @@ public class MessageCmds {
                     }
                 }
 
-                ctx.getChannel().getHistory().retrievePast(Math.min(amount, 100)).queue(
+                final var finalAmount = amount;
+                ctx.getChannel().getHistory().retrievePast(100).queue(
                         messageHistory -> {
                             String prefix = MantaroData.db().getGuild(ctx.getGuild()).getData().getGuildCustomPrefix();
-                            getMessageHistory(ctx, messageHistory, "commands.prune.bots_no_messages",
-                                    message -> message.getAuthor().isBot() ||
-                                            message.getContentRaw().startsWith(prefix == null ? "~>" : prefix));
+                            getMessageHistory(ctx, messageHistory, finalAmount,
+                                    "commands.prune.bots_no_messages",
+                                    message -> message.getAuthor().isBot() || message.getContentRaw().startsWith(prefix == null ? "~>" : prefix)
+                            );
                         }, error -> {
                             ctx.sendLocalized("commands.prune.error_retrieving",
                                     EmoteReference.ERROR, error.getClass().getSimpleName(), error.getMessage()
@@ -162,7 +177,6 @@ public class MessageCmds {
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
                 var args = ctx.getArguments();
-
                 var amount = 100;
                 if (args.length >= 1) {
                     try {
@@ -176,10 +190,14 @@ public class MessageCmds {
                     }
                 }
 
-                ctx.getChannel().getHistory().retrievePast(Math.min(amount, 100)).queue(
-                        messageHistory -> getMessageHistory(ctx, messageHistory,
-                                "commands.prune.no_pins_no_messages", message -> !message.isPinned()
-                        ), error -> {
+                final var finalAmount = amount;
+                ctx.getChannel().getHistory().retrievePast(100).queue(
+                        messageHistory ->
+                                getMessageHistory(ctx, messageHistory, finalAmount,
+                                        "commands.prune.no_pins_no_messages",
+                                        message -> !message.isPinned()
+                                ),
+                        error -> {
                             ctx.sendLocalized("commands.prune.error_retrieving",
                                     EmoteReference.ERROR, error.getClass().getSimpleName(), error.getMessage()
                             );
@@ -190,25 +208,15 @@ public class MessageCmds {
 
             }
         });
-
-        pruneCmd.setPredicate(ctx -> {
-            if (!ctx.getMember().hasPermission(Permission.MESSAGE_MANAGE)) {
-                ctx.sendLocalized("commands.prune.no_permissions_user", EmoteReference.ERROR);
-                return false;
-            }
-
-            if (!ctx.getSelfMember().hasPermission(Permission.MESSAGE_MANAGE)) {
-                ctx.sendLocalized("commands.prune.no_permissions", EmoteReference.ERROR);
-                return false;
-            }
-
-            return true;
-        });
     }
 
-    private void getMessageHistory(Context ctx, List<Message> messageHistory, String i18n, Predicate<Message> predicate) {
-        messageHistory = messageHistory.stream().filter(predicate).collect(Collectors.toList());
+    private void getMessageHistory(Context ctx, List<Message> messageHistory, int limit, String i18n, Predicate<Message> predicate) {
+        var stream = messageHistory.stream().filter(predicate);
+        if (limit != -1) {
+            stream = stream.limit(limit);
+        }
 
+        messageHistory = stream.collect(Collectors.toList());
         if (messageHistory.isEmpty()) {
             ctx.sendLocalized(i18n, EmoteReference.ERROR);
             return;
@@ -223,8 +231,8 @@ public class MessageCmds {
     }
 
     private void prune(Context ctx, List<Message> messageHistory) {
-        messageHistory = messageHistory.stream().filter(message -> !message.getTimeCreated()
-                .isBefore(OffsetDateTime.now().minusWeeks(2)))
+        messageHistory = messageHistory.stream()
+                .filter(message -> !message.getTimeCreated().isBefore(OffsetDateTime.now().minusWeeks(2)))
                 .collect(Collectors.toList());
 
         if (messageHistory.isEmpty()) {
@@ -243,7 +251,7 @@ public class MessageCmds {
                 success -> {
                     ctx.sendLocalized("commands.prune.success", EmoteReference.PENCIL, size);
 
-                    DBGuild db = ctx.getDBGuild();
+                    var db = ctx.getDBGuild();
                     db.getData().setCases(db.getData().getCases() + 1);
                     db.saveAsync();
                     ModLog.log(ctx.getMember(), null, "Pruned Messages",

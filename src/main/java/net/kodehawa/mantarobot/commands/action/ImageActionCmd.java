@@ -24,9 +24,9 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.awt.Color;
 import java.util.Collections;
@@ -112,7 +112,6 @@ public class ImageActionCmd extends NoArgsCommand {
 
         var languageContext = ctx.getGuildLanguageContext();
         var random = "";
-
         try {
             if (type != null) {
                 var result = weebapi.getRandomImageByType(type, false, "gif");

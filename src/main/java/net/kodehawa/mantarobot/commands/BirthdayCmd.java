@@ -33,8 +33,8 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.db.entities.DBUser;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -228,7 +228,7 @@ public class BirthdayCmd {
                                 .filter(birthday -> ids.contains(birthday.getKey()))
                                 .map((entry) -> {
                                     var birthday = entry.getValue().getBirthday().split("-");
-                                    Member member = null;
+                                    Member member;
                                     try {
                                         member = guild.retrieveMemberById(entry.getKey(), false).complete();
                                     } catch (Exception e) {
@@ -336,7 +336,7 @@ public class BirthdayCmd {
                                     Guild guild = ctx.getGuild();
                                     var birthday = entry.getValue().getBirthday().split("-");
 
-                                    Member member = null;
+                                    Member member;
                                     try {
                                         member = guild.retrieveMemberById(entry.getKey(), false).complete();
                                     } catch (Exception e) {

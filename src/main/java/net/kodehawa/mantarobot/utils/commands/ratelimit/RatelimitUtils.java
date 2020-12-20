@@ -14,7 +14,7 @@
  * along with Mantaro. If not, see http://www.gnu.org/licenses/
  */
 
-package net.kodehawa.mantarobot.utils;
+package net.kodehawa.mantarobot.utils.commands.ratelimit;
 
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -23,9 +23,8 @@ import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.Config;
 import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.log.LogUtils;
+import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
-import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
-import net.kodehawa.mantarobot.utils.commands.ratelimit.RateLimit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +122,8 @@ public class RatelimitUtils {
     private static void onRateLimit(User user, String guildId, String channelId, String messageId) {
         var ratelimitedTimes = ratelimitedUsers.computeIfAbsent(user.getIdLong(), __ -> new AtomicInteger()).incrementAndGet();
 
-        if (ratelimitedTimes > 700 && !loggedSpambotUsers.contains(user.getId())) {
+        // Remember to update this if you make a command that has rls
+        if (ratelimitedTimes > 1450 && !loggedSpambotUsers.contains(user.getId())) {
             loggedSpambotUsers.add(user.getId());
             LogUtils.spambot(user, guildId, channelId, messageId, LogUtils.SpamType.BLATANT);
         }

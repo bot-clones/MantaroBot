@@ -41,12 +41,11 @@ import net.kodehawa.mantarobot.db.entities.DBUser;
 import net.kodehawa.mantarobot.db.entities.Marriage;
 import net.kodehawa.mantarobot.db.entities.Player;
 import net.kodehawa.mantarobot.db.entities.helpers.Inventory;
-import net.kodehawa.mantarobot.db.entities.helpers.MarriageData;
 import net.kodehawa.mantarobot.db.entities.helpers.UserData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -390,7 +389,7 @@ public class MarryCmd {
             }
         });
 
-        marryCommand.addSubCommand("buyhouse", new SubCommand() {
+        marryCommand.addSubCommand("house", new SubCommand() {
             @Override
             public String description() {
                 return "Buys a house to live in. You need to buy a house in market first. Usage: `~>marry buyhouse <name>`";
@@ -418,11 +417,18 @@ public class MarryCmd {
                     return;
                 }
 
+                content = content.replace("\n", "").trim();
                 if (content.isEmpty()) {
                     ctx.sendLocalized("commands.marry.buyhouse.no_name", EmoteReference.ERROR);
                     return;
                 }
 
+                if (content.length() > 150) {
+                    ctx.sendLocalized("commands.pet.buy.too_long", EmoteReference.ERROR);
+                    return;
+                }
+
+                var finalContent = content;
                 ctx.sendLocalized("commands.marry.buyhouse.confirm", EmoteReference.WARNING, housePrice, content);
                 InteractiveOperations.create(ctx.getChannel(), ctx.getAuthor().getIdLong(), 30, (e) -> {
                     if (!e.getAuthor().equals(ctx.getAuthor()))
@@ -451,10 +457,10 @@ public class MarryCmd {
                         playerConfirmed.save();
 
                         marriageConfirmed.getData().setHasHouse(true);
-                        marriageConfirmed.getData().setHouseName(content);
+                        marriageConfirmed.getData().setHouseName(finalContent);
                         marriageConfirmed.save();
 
-                        ctx.sendLocalized("commands.marry.buyhouse.success", EmoteReference.POPPER, housePrice, content);
+                        ctx.sendLocalized("commands.marry.buyhouse.success", EmoteReference.POPPER, housePrice, finalContent);
                         return Operation.COMPLETED;
                     }
 
@@ -466,9 +472,9 @@ public class MarryCmd {
                     return Operation.IGNORED;
                 });
             }
-        });
+        }).createSubCommandAlias("house", "buyhouse");
 
-        marryCommand.addSubCommand("buycar", new SubCommand() {
+        marryCommand.addSubCommand("car", new SubCommand() {
             @Override
             public String description() {
                 return "Buys a car to travel in. You need to buy a ~~cat~~ car in market first. Usage: `~>marry buycar <name>`";
@@ -501,6 +507,13 @@ public class MarryCmd {
                     return;
                 }
 
+                content = content.replace("\n", "").trim();
+                if (content.length() > 150) {
+                    ctx.sendLocalized("commands.pet.buy.too_long", EmoteReference.ERROR);
+                    return;
+                }
+
+                var finalContent = content;
                 ctx.sendLocalized("commands.marry.buycar.confirm", EmoteReference.WARNING, carPrice, content);
                 InteractiveOperations.create(ctx.getChannel(), ctx.getAuthor().getIdLong(), 30, (e) -> {
                     if (!e.getAuthor().equals(ctx.getAuthor()))
@@ -528,10 +541,10 @@ public class MarryCmd {
                         playerConfirmed.save();
 
                         marriageConfirmed.getData().setHasCar(true);
-                        marriageConfirmed.getData().setCarName(content);
+                        marriageConfirmed.getData().setCarName(finalContent);
                         marriageConfirmed.save();
 
-                        ctx.sendLocalized("commands.marry.buycar.success", EmoteReference.POPPER, carPrice, content);
+                        ctx.sendLocalized("commands.marry.buycar.success", EmoteReference.POPPER, carPrice, finalContent);
                         return Operation.COMPLETED;
                     }
 
@@ -543,7 +556,7 @@ public class MarryCmd {
                     return Operation.IGNORED;
                 });
             }
-        });
+        }).createSubCommandAlias("car", "buycar");
 
         IncreasingRateLimiter tzRatelimit = new IncreasingRateLimiter.Builder()
                 .limit(1)
@@ -605,55 +618,56 @@ public class MarryCmd {
 
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
-                final User author = ctx.getAuthor();
-                DBUser dbUser = ctx.getDBUser();
-                final Marriage currentMarriage = dbUser.getData().getMarriage();
+                final var author = ctx.getAuthor();
+                final var dbUser = ctx.getDBUser();
+                final var dbUserData = dbUser.getData();
+                final var currentMarriage = dbUserData.getMarriage();
                 //What status would we have without marriage? Well, we can be unmarried omegalul.
                 if (currentMarriage == null) {
                     ctx.sendLocalized("commands.marry.status.no_marriage", EmoteReference.SAD);
                     return;
                 }
 
-                MarriageData data = currentMarriage.getData();
+                final var data = currentMarriage.getData();
 
                 //Can we find the user this is married to?
-                final User marriedTo = ctx.retrieveUserById(currentMarriage.getOtherPlayer(author.getId()));
+                final var marriedTo = ctx.retrieveUserById(currentMarriage.getOtherPlayer(author.getId()));
                 if (marriedTo == null) {
                     ctx.sendLocalized("commands.marry.loveletter.cannot_see", EmoteReference.ERROR);
                     return;
                 }
 
                 //Get the current love letter.
-                String loveLetter = data.getLoveLetter();
+                var loveLetter = data.getLoveLetter();
                 if (loveLetter == null || loveLetter.isEmpty()) {
                     loveLetter = "None.";
                 }
 
-                DBUser marriedDBUser = ctx.getDBUser(marriedTo);
-                String dateFormat = Utils.formatDate(data.getMarriageCreationMillis(), dbUser.getData().getLang());
-
-                boolean eitherHasWaifus = !(dbUser.getData().getWaifus().isEmpty() && marriedDBUser.getData().getWaifus().isEmpty());
+                final var marriedDBUser = ctx.getDBUser(marriedTo);
+                final var dateFormat = Utils.formatDate(data.getMarriageCreationMillis(), dbUserData.getLang());
+                final var eitherHasWaifus = !(dbUserData.getWaifus().isEmpty() && marriedDBUser.getData().getWaifus().isEmpty());
+                final var marriedToName = dbUserData.isPrivateTag() ? marriedTo.getName() : marriedTo.getAsTag();
+                final var authorName = dbUserData.isPrivateTag() ? author.getName() : author.getAsTag();
 
                 EmbedBuilder embedBuilder = new EmbedBuilder()
+                        .setThumbnail(author.getEffectiveAvatarUrl())
                         .setAuthor(languageContext.get("commands.marry.status.header"), null, author.getEffectiveAvatarUrl())
                         .setColor(ctx.getMember().getColor() == null ? Color.PINK : ctx.getMember().getColor())
                         .setDescription(languageContext.get("commands.marry.status.description_format").formatted(
-                                EmoteReference.HEART,
-                                author.getName(),
-                                author.getDiscriminator(),
-                                marriedTo.getName(),
-                                marriedTo.getDiscriminator())
+                                EmoteReference.HEART, authorName, marriedToName)
                         ).addField(languageContext.get("commands.marry.status.date"), dateFormat, false)
                         .addField(languageContext.get("commands.marry.status.love_letter"), loveLetter, false)
                         .addField(languageContext.get("commands.marry.status.waifus"), String.valueOf(eitherHasWaifus), false)
                         .setFooter("Marriage ID: " + currentMarriage.getId(), author.getEffectiveAvatarUrl());
 
                 if (data.hasHouse()) {
-                    embedBuilder.addField(languageContext.get("commands.marry.status.house"), data.getHouseName(), true);
+                    var houseName = data.getHouseName().replace("\n", "").trim();
+                    embedBuilder.addField(languageContext.get("commands.marry.status.house"), houseName, true);
                 }
 
                 if (data.hasCar()) {
-                    embedBuilder.addField(languageContext.get("commands.marry.status.car"), data.getCarName(), true);
+                    var carName = data.getCarName().replace("\n", "").trim();
+                    embedBuilder.addField(languageContext.get("commands.marry.status.car"), carName, true);
                 }
 
                 if (data.getPet() != null) {

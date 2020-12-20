@@ -30,9 +30,9 @@ import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.data.MantaroData;
 import net.kodehawa.mantarobot.db.entities.Player;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.security.SecureRandom;
 import java.text.NumberFormat;
@@ -147,12 +147,8 @@ public class GambleCmds {
                     return;
                 }
 
-                var user = ctx.getAuthor();
                 var gains = (long) (i * multiplier);
                 gains = Math.round(gains * 0.45);
-
-                final var finalLuck = luck;
-                final var finalGains = gains;
                 // Get the player again, to make sure the entry is not stale.
                 proceedGamble(ctx, ctx.getPlayer(), luck, i, gains, i);
             }

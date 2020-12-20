@@ -35,7 +35,7 @@ import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.FinderUtils;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -290,12 +290,14 @@ public class InfoCmds {
                             .collect(Collectors.joining(", "));
 
                     var languageContext = ctx.getLanguageContext();
+                    var voiceState = member.getVoiceState();
                     var str = """
                             %1$s **%2$s:** %3$s
                             %1$s **%4$s:** %5$s
                             %1$s **%6$s:** %7$s
                             %1$s **%8$s:** %9$s
                             %1$s **%10$s:** %11$s
+                            %1$s **%12$s:** %13$s
                             """.formatted(BLUE_SMALL_MARKER,
                             languageContext.get("commands.userinfo.id"), user.getId(),
                             languageContext.get("commands.userinfo.join_date"),
@@ -307,8 +309,8 @@ public class InfoCmds {
                                     System.currentTimeMillis() - user.getTimeCreated().toInstant().toEpochMilli())
                                     + " " + languageContext.get("general.days"),
                             languageContext.get("commands.userinfo.vc"),
-                            member.getVoiceState().getChannel() != null ?
-                                    member.getVoiceState().getChannel().getName() : languageContext.get("general.none"),
+                            voiceState != null && voiceState.getChannel() != null ?
+                                    voiceState.getChannel().getName() : languageContext.get("general.none"),
                             languageContext.get("commands.userinfo.color"),
                             member.getColor() == null ? languageContext.get("commands.userinfo.default") :
                                     "#%s".formatted(Integer.toHexString(member.getColor().getRGB()).substring(2).toUpperCase())

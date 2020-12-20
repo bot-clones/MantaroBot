@@ -43,11 +43,11 @@ import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.I18n;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.CustomFinderUtil;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 
 import java.awt.Color;
 import java.util.Arrays;
@@ -80,7 +80,7 @@ public class ProfileCmd {
     public void profile(CommandRegistry cr) {
         final var rateLimiter = new IncreasingRateLimiter.Builder()
                 .limit(2) //twice every 10m
-                .spamTolerance(1)
+                .spamTolerance(2)
                 .cooldown(10, TimeUnit.MINUTES)
                 .cooldownPenaltyIncrease(10, TimeUnit.SECONDS)
                 .maxCooldown(15, TimeUnit.MINUTES)

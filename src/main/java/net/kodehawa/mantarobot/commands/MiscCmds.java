@@ -32,8 +32,8 @@ import net.kodehawa.mantarobot.core.modules.commands.base.CommandCategory;
 import net.kodehawa.mantarobot.core.modules.commands.base.Context;
 import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
-import net.kodehawa.mantarobot.utils.DiscordUtils;
 import net.kodehawa.mantarobot.utils.Utils;
+import net.kodehawa.mantarobot.utils.commands.DiscordUtils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.data.DataManager;
 import net.kodehawa.mantarobot.utils.data.SimpleFileDataManager;
@@ -66,7 +66,7 @@ public class MiscCmds {
             if (role == null) {
                 ctx.sendLocalized("commands.iam.deleted_role", EmoteReference.ERROR);
 
-                //delete the non-existent autorole.
+                // delete the non-existent autorole.
                 dbGuild.getData().getAutoroles().remove(autoroleName);
                 dbGuild.saveAsync();
             } else {
@@ -76,7 +76,6 @@ public class MiscCmds {
                 }
                 try {
                     ctx.getGuild().addRoleToMember(ctx.getMember(), role)
-                            //don't translate the reason!
                             .reason("Auto-assignable roles assigner (~>iam)")
                             .queue(aVoid -> {
                                 if (message == null || message.isEmpty())
@@ -106,8 +105,6 @@ public class MiscCmds {
             Role role = ctx.getGuild().getRoleById(autoroles.get(autoroleName));
             if (role == null) {
                 ctx.sendLocalized("commands.iam.deleted_role", EmoteReference.ERROR);
-
-                //delete the non-existent autorole.
                 dbGuild.getData().getAutoroles().remove(autoroleName);
                 dbGuild.saveAsync();
             } else {
@@ -117,13 +114,12 @@ public class MiscCmds {
                 }
 
                 try {
-                    ctx.getGuild().removeRoleFromMember(ctx.getMember(), role)
-                            .queue(aVoid -> {
-                                if (message == null || message.isEmpty())
-                                    ctx.sendLocalized("commands.iamnot.success", EmoteReference.OK, ctx.getAuthor().getName(), role.getName());
-                                else
-                                    ctx.sendStrippedLocalized(message);
-                            });
+                    ctx.getGuild().removeRoleFromMember(ctx.getMember(), role).queue(__ -> {
+                        if (message == null || message.isEmpty())
+                            ctx.sendLocalized("commands.iamnot.success", EmoteReference.OK, ctx.getAuthor().getName(), role.getName());
+                        else
+                            ctx.sendStrippedLocalized(message);
+                    });
                 } catch (PermissionException pex) {
                     ctx.sendLocalized("commands.iam.error", EmoteReference.ERROR, role.getName());
                 }

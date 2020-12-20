@@ -36,10 +36,10 @@ import net.kodehawa.mantarobot.core.modules.commands.help.HelpContent;
 import net.kodehawa.mantarobot.core.modules.commands.i18n.I18nContext;
 import net.kodehawa.mantarobot.data.Config;
 import net.kodehawa.mantarobot.data.MantaroData;
-import net.kodehawa.mantarobot.utils.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.Utils;
 import net.kodehawa.mantarobot.utils.commands.EmoteReference;
 import net.kodehawa.mantarobot.utils.commands.ratelimit.IncreasingRateLimiter;
+import net.kodehawa.mantarobot.utils.commands.ratelimit.RatelimitUtils;
 import net.kodehawa.mantarobot.utils.data.JsonDataManager;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -164,8 +164,7 @@ public class LeaderboardCmd {
                                             languageContext.get("commands.leaderboard.inner.money").formatted(EmoteReference.MONEY),
                                     "commands.leaderboard.money", moneyLeaderboard,
                                     map -> {
-                                        Object money = null;
-
+                                        Object money;
                                         if (seasonal) {
                                             money = map.get("money");
                                         } else {

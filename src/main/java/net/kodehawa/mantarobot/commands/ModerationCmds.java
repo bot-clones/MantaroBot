@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 David Rubio Escares / Kodehawa
+ * Copyright (C) 2016-2021 David Rubio Escares / Kodehawa
  *
  *  Mantaro is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
  *  GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Mantaro.  If not, see http://www.gnu.org/licenses/
+ * along with Mantaro. If not, see http://www.gnu.org/licenses/
  */
 
 package net.kodehawa.mantarobot.commands;
@@ -88,7 +88,7 @@ public class ModerationCmds {
 
                 //If one of them is in a higher hierarchy than the bot, cannot ban.
                 if (!selfMember.canInteract(member)) {
-                    ctx.sendLocalized("commands.softban.self_hierarchy_conflict", EmoteReference.ERROR);
+                    ctx.sendLocalized("commands.softban.self_hierarchy_conflict", EmoteReference.ERROR, user.getName());
                     return;
                 }
 
@@ -308,7 +308,7 @@ public class ModerationCmds {
                 final var finalReason = "Kicked by %#s: %s".formatted(ctx.getAuthor(), reason);
                 var memberRaw = args[0];
 
-                ctx.findMember(memberRaw, ctx.getMessage()).onSuccess(members -> {
+                ctx.findMember(memberRaw, members -> {
                     var member = CustomFinderUtil.findMember(memberRaw, members, ctx);
                     if (member == null)
                         return;

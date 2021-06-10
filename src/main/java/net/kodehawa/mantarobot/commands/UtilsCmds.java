@@ -49,6 +49,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -168,7 +169,9 @@ public class UtilsCmds {
             @Override
             protected void call(Context ctx, I18nContext languageContext, String content) {
                 var reminders = ctx.getDBUser().getData().getReminders();
-                var rms = getReminders(reminders);
+                var rms = getReminders(reminders).stream()
+                        .sorted(Comparator.comparingLong(ReminderObject::getScheduledAtMillis))
+                        .collect(Collectors.toList());
 
                 if (rms.isEmpty()) {
                     ctx.sendLocalized("commands.remindme.no_reminders", EmoteReference.ERROR);
@@ -178,11 +181,17 @@ public class UtilsCmds {
                 var builder = new StringBuilder();
                 var i = new AtomicInteger();
                 for (var rems : rms) {
-                    builder.append("**").append(i.incrementAndGet()).append(".-**").append("R: *").append(rems.getReminder()).append("*, Due in: **")
-                            .append(Utils.formatDuration(rems.getTime() - System.currentTimeMillis())).append("**").append("\n");
+                    builder.append("**").append(i.incrementAndGet()).append(".-**")
+                            .append("Content: *")
+                            .append(rems.getReminder())
+                            .append("*, Due in: **")
+                            .append(Utils.formatDuration(rems.getTime() - System.currentTimeMillis()))
+                            .append("**").append("\n");
                 }
 
-                var toSend = new MessageBuilder().append(builder.toString()).buildAll(MessageBuilder.SplitPolicy.NEWLINE);
+                var toSend = new MessageBuilder().append(builder.toString())
+                        .buildAll(MessageBuilder.SplitPolicy.NEWLINE);
+
                 toSend.forEach(ctx::send);
             }
         });

@@ -82,7 +82,7 @@ public class BirthdayCmd {
                             var parts = new ArrayList<>(Arrays.asList(birthday.split("-")));
 
                             if (Integer.parseInt(parts.get(0)) > 31 || Integer.parseInt(parts.get(1)) > 12) {
-                                ctx.sendLocalized("commands.birthday.invalid_date", EmoteReference.ERROR);
+                                ctx.sendLocalized("commands.birthday.error_date", EmoteReference.ERROR);
                                 return;
                             }
 
